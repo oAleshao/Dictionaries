@@ -171,6 +171,7 @@ namespace Dictionaries
             Console.Write("Введите номер словаря который хотите редактировать: ");
             int indx;
             string MaybeMistake = Console.ReadLine();
+            if (ChakBack(MaybeMistake, true)) return;
             try
             {
                 while (int.Parse(MaybeMistake) > vocabularies.Count)
@@ -308,11 +309,14 @@ namespace Dictionaries
             {
                 if (item.vocabluary.ContainsKey(word))
                 {
+                    Console.WriteLine(vocabularies[indx].nameDictionary);
                     vocabularies[indx].OutputTranslates(word);
                     flag = false;
+                    indx++;
                 }
                 else
                 {
+                    Console.WriteLine(vocabularies[indx].nameDictionary);
                     flag = vocabularies[indx].OutputSearchTranslate(word);
                     indx++;
                 }
