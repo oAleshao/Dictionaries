@@ -1,10 +1,13 @@
 ﻿using Dictionaries;
 using System;
+using System.IO.Enumeration;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text.Json;
+using System.Xml.Linq;
+using System.Xml.Serialization;
 
 namespace Dictionaries
 {
@@ -13,27 +16,12 @@ namespace Dictionaries
     internal class Program
     {
 
-
-
         static void Main(string[] args)
         {
+            SaverAndLoader saveAndLoad = new SaverAndLoader();
+            string filemName = "Dictionaries.json";
 
-            FileStream file;
-            DataContractJsonSerializer _json = new DataContractJsonSerializer(typeof(Vocabularies));
-
-            Vocabularies vocabularies = new Vocabularies();
-
-            try
-            {
-                file = new FileStream("Dictionaries.json", FileMode.Open);
-                vocabularies = (Vocabularies)_json.ReadObject(file);
-                file.Close();
-
-            }catch (FileNotFoundException)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Словари не были загружены\n\n");
-            }
+            Vocabularies vocabularies = saveAndLoad.Load(filemName);
 
 
 
@@ -62,9 +50,7 @@ namespace Dictionaries
                 {
                     case 0:
                         {
-                            file = new FileStream("Dictionaries.json", FileMode.Create);
-                            _json.WriteObject(file, vocabularies);
-                            file.Close();
+                            saveAndLoad.Save(vocabularies, filemName);
                             return;
                         }
                     case 1:
@@ -94,17 +80,42 @@ namespace Dictionaries
                         }
                 }
                 Thread.Sleep(1000);
-                file = new FileStream("Dictionaries.json", FileMode.Create);
-                _json.WriteObject(file, vocabularies);
-                file.Close();
+                saveAndLoad.Save(vocabularies, filemName);
                 Console.Clear();
-
             } while (choice != 0);
         }
 
-
        
 
+    }
+
+    class SaverAndLoader
+    {
+        public void Save(Vocabularies vocabularies, string nameFile)
+        {
+            DataContractJsonSerializer _json = new DataContractJsonSerializer(typeof(Vocabularies));
+            FileStream file = new FileStream(nameFile, FileMode.Create);
+            _json.WriteObject(file, vocabularies);
+            file.Close();
+        }
+
+        public Vocabularies Load(string nameFile)
+        {
+            Vocabularies vocabularies = new Vocabularies();
+            DataContractJsonSerializer _json = new DataContractJsonSerializer(typeof(Vocabularies));
+            FileStream file = new FileStream(nameFile, FileMode.Open);
+            try
+            {
+                vocabularies = (Vocabularies)_json.ReadObject(file);
+            }
+            catch(Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Словари не были загружены\n");
+            }
+            file.Close();
+            return vocabularies;
+        }
     }
 
 
@@ -166,6 +177,7 @@ namespace Dictionaries
         // Редактирование словаря
         public void EditDictionary()
         {
+            SaverAndLoader saver = new SaverAndLoader();
             OutputShortDictionary();
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write("Введите номер словаря который хотите редактировать: ");
@@ -199,6 +211,7 @@ namespace Dictionaries
                 Console.WriteLine("6) Удалить перевод");
                 Console.WriteLine("7) Изменить перевод");
                 Console.WriteLine("8) Вывести словарь");
+                Console.WriteLine("9) Сохранить слово и его перевод в файл");
                 Console.WriteLine("0) Закрыть редактор");
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write("Введите действие: ");
@@ -220,35 +233,48 @@ namespace Dictionaries
                         }
                     case 3:
                         {
+                            if (vocabularies[indx].IsEmpty()) break;
                             vocabularies[indx].RemoveWord();
                             break;
                         }
                     case 4:
                         {
+                            if (vocabularies[indx].IsEmpty()) break;
                             vocabularies[indx].ChangeWord();
                             break;
                         }
                     case 5:
                         {
+                            if (vocabularies[indx].IsEmpty()) break; 
                             vocabularies[indx].AddTranslate();
                             break;
                         }
                     case 6:
                         {
+                            if (vocabularies[indx].IsEmpty()) break; 
                             vocabularies[indx].RemoveTranslate();
                             break;
                         }
                     case 7:
                         {
+                            if (vocabularies[indx].IsEmpty()) break;
                             vocabularies[indx].ChangeTranslate();
                             break;
                         }
                     case 8:
                         {
+                            if (vocabularies[indx].IsEmpty()) break;
                             OutputDictionary(indx);
                             break;
                         }
+                    case 9:
+                        {
+                            if (vocabularies[indx].IsEmpty()) break;
+                            vocabularies[indx].SaveWoraAndTranslate();
+                            break;
+                        }
                 }
+                saver.Save(this, "Dictionaries.json");
             } while (choice != 0);
         }
 
@@ -296,8 +322,6 @@ namespace Dictionaries
         }
 
 
-
-        
         public void SearchWord()
         {
             bool flag = false;
@@ -316,8 +340,7 @@ namespace Dictionaries
                 }
                 else
                 {
-                    Console.WriteLine(vocabularies[indx].nameDictionary);
-                    flag = vocabularies[indx].OutputSearchTranslate(word);
+                    flag = vocabularies[indx].OutputSearchTranslate(word, vocabularies[indx].nameDictionary);
                     indx++;
                 }
             }
@@ -540,17 +563,17 @@ namespace Dictionaries
                 _translate = Console.ReadLine();
                 if (ChackBack(_translate)) return;
             }
-            vocabluary[temp].Remove(_translate);
-
             Console.Write("Введите измененный перевод: ");
             string _translate1 = Console.ReadLine();
             if (ChackBack(_translate1)) return;
-            while (_translate1 == "" || vocabluary[temp].Contains(_translate1))
+            while (_translate1 == "")
             {
                 Console.WriteLine("\n\tПеревод введен не верно!!!\n");
                 Console.Write("Введите перевод правильно: ");
                 _translate = Console.ReadLine();
+                if (ChackBack(_translate1)) return;
             }
+            vocabluary[temp].Remove(_translate);
             vocabluary[temp].Add(_translate1);
             vocabluary[temp].Sort();
             return;
@@ -619,7 +642,7 @@ namespace Dictionaries
             Console.WriteLine("\n\n");
         }
 
-        public bool OutputSearchTranslate(string word)
+        public bool OutputSearchTranslate(string word, string nameDictionary)
         {
 
             string temp = null;
@@ -637,6 +660,8 @@ namespace Dictionaries
             List<string> words = vocabluary[temp];
             int flag = 1;
 
+
+            Console.WriteLine(nameDictionary);
             Console.Write(temp + " - ");
             foreach (var item in words)
             {
@@ -671,6 +696,37 @@ namespace Dictionaries
 
         }
 
+
+        public void SaveWoraAndTranslate()
+        {
+            OutputShortWord();
+            Console.Write("Введите слово которое хотите сохранить: ");
+            string temp = Console.ReadLine();
+            if (ChackBack(temp)) return; 
+            while (!vocabluary.ContainsKey(temp))
+            {
+                Console.Write("Такого слова в словаре нету!!!\nВведите слово правильно: ");
+                temp = Console.ReadLine();
+                if (ChackBack(temp)) return;
+
+            }
+            FileStream file = new FileStream(temp+".xml", FileMode.Create);
+            XmlSerializer xml = new XmlSerializer(typeof(string));
+            string str = temp + " - ";
+            int flag = 1;
+            foreach (var word in vocabluary[temp]) 
+            {
+                str += word;
+                if (flag != vocabluary[temp].Count)
+                    str += ", ";
+                flag++;
+            }
+            xml.Serialize(file, str);
+            file.Close();
+            return;
+
+        }
+
         // Сортировка словаря
         private void Sorted()
         {
@@ -694,6 +750,16 @@ namespace Dictionaries
             }
             catch (Exception ex) { }
             return flag;
+        }
+
+        public bool IsEmpty()
+        {
+            if(vocabluary.Count == 0){
+                Console.WriteLine("\n\n\t\tСловарь пуст!!!\n\n");
+                Thread.Sleep(1500);
+                return true;
+            }
+            return false;
         }
     }
 }
